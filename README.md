@@ -4,6 +4,15 @@ A macOS desktop application that automatically detects active meetings, records 
 
 ---
 
+## Screenshots
+
+### Main Window — Meeting Detected
+![Meeting Assistant — Meeting Detected](docs/screenshots/main_window.png)
+
+> The app automatically detected **Microsoft Teams** and turned the status indicator green. The left panel shows the live transcript area and the right panel has the **Generate Summary** button powered by Claude.
+
+---
+
 ## What It Does
 
 | Feature | Details |

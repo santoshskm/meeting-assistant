@@ -16,7 +16,7 @@ __pycache__/
 
 # Exports & screenshots (user-generated content)
 exports/
-screenshots/
+/screenshots/
 
 # Temp audio files
 *.wav
