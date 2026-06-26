@@ -51,7 +51,7 @@ class MeetingAssistantWindow(QMainWindow):
         self._is_recording = False
         self._recording_start: float | None = None
         self._current_app: str | None = None
-        self._auto_record = True
+        self._auto_record = False
 
         self._setup_ui()
         self._connect_signals()
@@ -116,7 +116,7 @@ class MeetingAssistantWindow(QMainWindow):
         row.addSpacing(20)
 
         self._auto_cb = QCheckBox("Auto-record meetings")
-        self._auto_cb.setChecked(True)
+        self._auto_cb.setChecked(False)
         self._auto_cb.setStyleSheet(f"color: {_MUTED};")
         self._auto_cb.stateChanged.connect(lambda s: setattr(self, "_auto_record", bool(s)))
         row.addWidget(self._auto_cb)
