@@ -1,0 +1,35 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# macOS
+.DS_Store
+*.DS_Store
+
+# Exports & screenshots (user-generated content)
+exports/
+screenshots/
+
+# Temp audio files
+*.wav
+/tmp/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.*
