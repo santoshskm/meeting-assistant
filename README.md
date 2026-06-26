@@ -42,7 +42,7 @@ Local_transcript/
     │   ├── meeting_detector.py  ← process monitor (psutil)
     │   ├── audio_recorder.py    ← sounddevice + BlackHole support
     │   ├── transcriber.py       ← faster-whisper (local, CPU)
-    │   └── ai_processor.py      ← Claude Code CLI integration
+    │   └── ai_processor.py      ← Claude CLI + Ollama integration
     ├── ui/
     │   ├── main_window.py       ← PyQt6 dark-themed UI
     │   └── system_tray.py       ← macOS menu bar icon
@@ -224,6 +224,96 @@ Reports are saved to the `exports/` folder inside the project directory:
 Local_transcript/exports/meeting_notes_YYYYMMDD_HHMMSS.md
 Local_transcript/exports/meeting_notes_YYYYMMDD_HHMMSS.pdf
 ```
+
+---
+
+## AI Backend Options
+
+The app supports two AI backends for generating meeting summaries. Choose one based on your preference:
+
+| | Claude Code CLI | Ollama (Free) |
+|---|---|---|
+| **Cost** | Requires Anthropic account | Free, runs locally |
+| **Setup** | Install CLI + login | Install Ollama + pull a model |
+| **Quality** | High (Claude Sonnet/Opus) | Good (Llama3, Mistral, etc.) |
+| **Internet** | Required | Not required after model download |
+| **Privacy** | Transcript sent to Anthropic | 100% local, nothing leaves your machine |
+
+---
+
+## Option A — Claude Code CLI (Default)
+
+Follow **Step 9** in the Installation section to install and authenticate the Claude Code CLI.
+
+In `meeting_assistant/config.py`, set:
+```python
+AI_BACKEND = "claude"
+```
+
+---
+
+## Option B — Ollama (Free, No Account Needed)
+
+### Step 1 — Install Ollama
+
+Download and install Ollama from **https://ollama.com**
+
+Verify installation:
+```bash
+ollama --version
+```
+
+### Step 2 — Pull a model
+
+```bash
+# Recommended — good balance of speed and quality
+ollama pull llama3
+
+# Alternatives
+ollama pull mistral       # fast and accurate
+ollama pull phi3          # lightweight, good for low-end machines
+ollama pull gemma         # Google's open model
+```
+
+> Model sizes range from ~2 GB (phi3) to ~8 GB (llama3). Make sure you have enough disk space.
+
+### Step 3 — Start Ollama server
+
+```bash
+ollama serve
+```
+
+Leave this terminal open while using the app. Ollama runs at `http://localhost:11434` by default.
+
+### Step 4 — Switch the backend in config
+
+In `meeting_assistant/config.py`, change:
+```python
+AI_BACKEND = "ollama"
+OLLAMA_MODEL = "llama3"   # or whichever model you pulled
+```
+
+### Step 5 — Run the app
+
+```bash
+source .venv/bin/activate
+python meeting_assistant/main.py
+```
+
+In the app, the **AI backend** dropdown will show **Ollama (Free, Local)**. Select your model and click **Generate Summary**.
+
+### Available Ollama models
+
+| Model | Size | Best for |
+|---|---|---|
+| `llama3` | ~4.7 GB | Best quality, recommended |
+| `llama3.2` | ~2 GB | Faster, still accurate |
+| `mistral` | ~4.1 GB | Fast and accurate |
+| `phi3` | ~2.3 GB | Low-resource machines |
+| `gemma` | ~5 GB | Alternative option |
+| `qwen2` | ~4.4 GB | Multilingual meetings |
+
+> To use a model not in this list, add it to `OLLAMA_MODELS` in `config.py` and pull it with `ollama pull <model-name>`.
 
 ---
 

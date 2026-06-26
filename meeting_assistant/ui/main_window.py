@@ -154,11 +154,24 @@ class MeetingAssistantWindow(QMainWindow):
         box = self._group_box("Summary & Action Items")
         layout = box.layout()
 
+        # Backend picker
+        backend_row = QHBoxLayout()
+        lbl_backend = QLabel("AI backend:")
+        lbl_backend.setStyleSheet(f"color: {_MUTED};")
+        backend_row.addWidget(lbl_backend)
+        self._backend_combo = QComboBox()
+        self._backend_combo.setStyleSheet(f"background: {_PANEL_BG}; color: {_TEXT}; border: 1px solid {_BORDER}; border-radius: 4px; padding: 2px 6px;")
+        self._backend_combo.addItem("Claude (Claude Code CLI)", "claude")
+        self._backend_combo.addItem("Ollama (Free, Local)", "ollama")
+        self._backend_combo.currentIndexChanged.connect(self._on_backend_changed)
+        backend_row.addWidget(self._backend_combo, stretch=1)
+        layout.addLayout(backend_row)
+
         # Model picker
         row = QHBoxLayout()
-        lbl = QLabel("Claude model:")
-        lbl.setStyleSheet(f"color: {_MUTED};")
-        row.addWidget(lbl)
+        self._model_label = QLabel("Claude model:")
+        self._model_label.setStyleSheet(f"color: {_MUTED};")
+        row.addWidget(self._model_label)
         self._model_combo = QComboBox()
         self._model_combo.setStyleSheet(f"background: {_PANEL_BG}; color: {_TEXT}; border: 1px solid {_BORDER}; border-radius: 4px; padding: 2px 6px;")
         self._refresh_models()
@@ -426,6 +439,12 @@ class MeetingAssistantWindow(QMainWindow):
         for idx, name in self.audio_recorder.get_input_devices():
             if "blackhole" not in name.lower():
                 self._device_combo.addItem(name, idx)
+
+    def _on_backend_changed(self, index: int):
+        backend = self._backend_combo.currentData()
+        self.ai_processor.set_backend(backend)
+        self._model_label.setText("Claude model:" if backend == "claude" else "Ollama model:")
+        self._refresh_models()
 
     def _refresh_models(self):
         self._model_combo.clear()
