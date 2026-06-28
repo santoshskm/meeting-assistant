@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import time
 
 from PyQt6.QtCore import QDateTime, QTimer, Qt, pyqtSignal
@@ -33,6 +35,8 @@ _BORDER = "#334155"
 _TEXT = "#e2e8f0"
 _MUTED = "#64748b"
 
+_SPEAKER_COLORS = ["#60a5fa", "#34d399", "#f97316", "#a78bfa", "#f43f5e", "#facc15"]
+
 
 class MeetingAssistantWindow(QMainWindow):
 
@@ -47,7 +51,7 @@ class MeetingAssistantWindow(QMainWindow):
         self.ai_processor = AIProcessor()
         self.report_generator = ReportGenerator()
 
-        self._transcript_entries: list[tuple[str, str]] = []
+        self._transcript_entries: list[tuple[str, str, str]] = []  # (ts, speaker, text)
         self._is_recording = False
         self._recording_start: float | None = None
         self._current_app: str | None = None
@@ -205,6 +209,21 @@ class MeetingAssistantWindow(QMainWindow):
 
         row.addSpacing(16)
 
+        lang_lbl = QLabel("Language:")
+        lang_lbl.setStyleSheet(f"color: {_MUTED};")
+        row.addWidget(lang_lbl)
+
+        self._lang_combo = QComboBox()
+        self._lang_combo.setStyleSheet(f"background: {_DARK_BG}; color: {_TEXT}; border: 1px solid {_BORDER}; border-radius: 4px; padding: 2px 6px;")
+        self._lang_combo.addItem("English", "en")
+        self._lang_combo.addItem("Hindi", "hi")
+        self._lang_combo.addItem("Hinglish / Auto", None)
+        self._lang_combo.setCurrentIndex(0)
+        self._lang_combo.currentIndexChanged.connect(self._on_language_changed)
+        row.addWidget(self._lang_combo)
+
+        row.addSpacing(16)
+
         self._record_btn = QPushButton("Start Recording")
         self._record_btn.setStyleSheet(self._btn_style("#22c55e", hover="#16a34a"))
         self._record_btn.clicked.connect(self._toggle_recording)
@@ -308,23 +327,31 @@ class MeetingAssistantWindow(QMainWindow):
         if self._is_recording:
             self._stop_recording()
 
-    def _on_audio_chunk(self, wav_path: str, timestamp: float):
-        self.transcriber.add_audio(wav_path, timestamp)
+    def _on_audio_chunk(self, wav_path: str, timestamp: float, speaker_id: str):
+        self.transcriber.add_audio(wav_path, timestamp, speaker_id)
 
-    def _on_transcription(self, text: str, timestamp: float):
+    def _on_transcription(self, text: str, timestamp: float, speaker_id: str):
         ts = QDateTime.fromSecsSinceEpoch(int(timestamp)).toString("hh:mm:ss")
-        self._transcript_entries.append((ts, text))
+        self._transcript_entries.append((ts, speaker_id, text))
+
+        # pick a stable color per speaker number
+        try:
+            idx = int(speaker_id.split()[-1]) - 1
+        except (ValueError, IndexError):
+            idx = 0
+        color = _SPEAKER_COLORS[idx % len(_SPEAKER_COLORS)]
 
         cursor = self._transcript_view.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         cursor.insertHtml(
-            f'<span style="color:{_MUTED}; font-size:11px;">[{ts}]</span> '
-            f'<span style="color:{_TEXT};">{text}</span><br/>'
+            f'<span style="color:{color}; font-size:12px; font-weight:bold;">{speaker_id}</span>'
+            f'<span style="color:{_MUTED}; font-size:11px;"> [{ts}]</span><br/>'
+            f'<span style="color:{_TEXT};">{text}</span><br/><br/>'
         )
         self._transcript_view.setTextCursor(cursor)
         self._transcript_view.ensureCursorVisible()
 
-        all_text = " ".join(t for _, t in self._transcript_entries)
+        all_text = " ".join(t for _, _, t in self._transcript_entries)
         self._word_count.setText(f"{len(all_text.split())} words")
 
     def _on_model_loaded(self):
@@ -393,14 +420,14 @@ class MeetingAssistantWindow(QMainWindow):
         model = self._model_combo.currentText()
         if model:
             self.ai_processor.model = model
-        full = "\n".join(f"[{ts}] {txt}" for ts, txt in self._transcript_entries)
+        full = "\n".join(f"[{ts}] {spk}: {txt}" for ts, spk, txt in self._transcript_entries)
         self.ai_processor.generate_summary(full)
 
     def _export(self, fmt: str):
         if not self._transcript_entries:
             QMessageBox.information(self, "Nothing to Export", "Record a meeting first.")
             return
-        transcript = "\n".join(f"[{ts}] {txt}" for ts, txt in self._transcript_entries)
+        transcript = "\n".join(f"[{ts}] {spk}: {txt}" for ts, spk, txt in self._transcript_entries)
         summary = self._summary_view.toMarkdown()
         path = self.report_generator.save(
             transcript=transcript,
@@ -415,6 +442,9 @@ class MeetingAssistantWindow(QMainWindow):
             f"{fmt_label} Exported Successfully",
             f"Your meeting report has been saved to:\n\n{path}",
         )
+
+    def _on_language_changed(self, _index: int):
+        self.transcriber.language = self._lang_combo.currentData()
 
     def _populate_devices(self):
         self._device_combo.clear()

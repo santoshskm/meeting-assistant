@@ -1,11 +1,16 @@
 from pathlib import Path
 
 # Paths
-TRANSCRIPT_DIR = Path("/Users/santoshmahto/Documents/Meeting Transcripts/Local_transcript")
+TRANSCRIPT_DIR = Path.home() /"/Users/santoshkumarmahto/Documents/meeting-assistant"
 EXPORTS_DIR = TRANSCRIPT_DIR / "exports"
 
 # Whisper model: tiny | base | small | medium | large-v2
-WHISPER_MODEL = "base"
+# "small" is the minimum recommended for Hindi/Hinglish accuracy
+WHISPER_MODEL = "small"
+
+# Transcription language
+# "en" = English only, "hi" = Hindi only, None = auto-detect (best for Hinglish)
+TRANSCRIPTION_LANGUAGE = "en"
 
 # Claude (Anthropic) — set ANTHROPIC_API_KEY in your environment
 CLAUDE_MODEL = "claude-sonnet-4-6"

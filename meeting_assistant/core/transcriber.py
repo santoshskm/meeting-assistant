@@ -1,14 +1,20 @@
+from __future__ import annotations
+
 import os
 import threading
 from queue import Empty, Queue
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from config import WHISPER_MODEL
+from config import TRANSCRIPTION_LANGUAGE, WHISPER_MODEL
+
+# Languages accepted in auto-detect mode — anything else is a hallucination
+_ALLOWED_LANGUAGES = {"en", "hi"}
+_MIN_LANGUAGE_PROB = 0.6  # discard if Whisper is less than 60% confident
 
 
 class Transcriber(QObject):
-    transcription_ready = pyqtSignal(str, float)   # (text, timestamp)
+    transcription_ready = pyqtSignal(str, float, str)  # (text, timestamp, speaker_id)
     transcription_error = pyqtSignal(str)
     model_loading = pyqtSignal()
     model_loaded = pyqtSignal()
@@ -19,6 +25,7 @@ class Transcriber(QObject):
         self._running = False
         self._queue: Queue = Queue()
         self._worker: threading.Thread | None = None
+        self.language: str | None = TRANSCRIPTION_LANGUAGE  # settable at runtime
 
     # --- public ---
 
@@ -36,8 +43,8 @@ class Transcriber(QObject):
     def stop(self):
         self._running = False
 
-    def add_audio(self, wav_path: str, timestamp: float):
-        self._queue.put((wav_path, timestamp))
+    def add_audio(self, wav_path: str, timestamp: float, speaker_id: str):
+        self._queue.put((wav_path, timestamp, speaker_id))
 
     # --- internal ---
 
@@ -56,14 +63,14 @@ class Transcriber(QObject):
     def _transcription_loop(self):
         while self._running:
             try:
-                wav_path, timestamp = self._queue.get(timeout=1.0)
+                wav_path, timestamp, speaker_id = self._queue.get(timeout=1.0)
                 text = self._transcribe(wav_path)
                 try:
                     os.unlink(wav_path)
                 except OSError:
                     pass
                 if text.strip():
-                    self.transcription_ready.emit(text.strip(), timestamp)
+                    self.transcription_ready.emit(text.strip(), timestamp, speaker_id)
             except Empty:
                 continue
             except Exception as exc:
@@ -72,11 +79,20 @@ class Transcriber(QObject):
     def _transcribe(self, wav_path: str) -> str:
         if self._model is None:
             return ""
-        segments, _ = self._model.transcribe(
+        segments, info = self._model.transcribe(
             wav_path,
             beam_size=5,
-            language="en",
+            language=self.language,
+            temperature=0,                   # greedy decode — much less hallucination
+            condition_on_previous_text=False, # each segment independent, stops compounding errors
+            no_speech_threshold=0.6,         # discard frames Whisper thinks aren't speech
             vad_filter=True,
             vad_parameters={"min_silence_duration_ms": 500},
         )
+        # In auto-detect mode, reject hallucinations in unexpected languages
+        if self.language is None:
+            if info.language not in _ALLOWED_LANGUAGES:
+                return ""
+            if info.language_probability < _MIN_LANGUAGE_PROB:
+                return ""
         return " ".join(seg.text for seg in segments)
